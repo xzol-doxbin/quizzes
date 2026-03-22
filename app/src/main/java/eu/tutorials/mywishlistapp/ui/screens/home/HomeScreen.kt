@@ -35,7 +35,7 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("QuizApp") },
                 actions = {
-                    IconButton(onClick = { viewModel.logout(); onLogout() }) {
+                    IconButton(onClick = { viewModel.logout { onLogout() } }) {
                         Icon(Icons.Default.ExitToApp, contentDescription = "Вихід")
                     }
                 }
@@ -43,25 +43,38 @@ fun HomeScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text("Привіт, $username!", style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 8.dp))
-            Text("Що будемо робити?", style = MaterialTheme.typography.bodyLarge,
+            Text(
+                "Привіт, $username!",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Text(
+                "Що будемо робити?",
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 48.dp))
+                modifier = Modifier.padding(bottom = 48.dp)
+            )
 
-            Button(onClick = onNavigateToQuizList,
-                modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Button(
+                onClick = onNavigateToQuizList,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
                 Icon(Icons.Default.List, contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp))
                 Text("Пройти квіз")
             }
             Spacer(Modifier.height(16.dp))
-            OutlinedButton(onClick = onNavigateToAddQuiz,
-                modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            OutlinedButton(
+                onClick = onNavigateToAddQuiz,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
                 Icon(Icons.Default.Add, contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp))
                 Text("Створити квіз")

@@ -18,7 +18,10 @@ class HomeViewModel(
         initialValue = ""
     )
 
-    fun logout() {
-        viewModelScope.launch { sessionManager.clearSession() }
+    fun logout(onDone: () -> Unit) {
+        viewModelScope.launch {
+            sessionManager.clearSession()
+            onDone()
+        }
     }
 }

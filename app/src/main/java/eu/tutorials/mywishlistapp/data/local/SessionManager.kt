@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences>
@@ -20,11 +21,17 @@ class SessionManager(private val context: Context) {
         private val KEY_USERNAME = stringPreferencesKey("username")
     }
 
-    val userId: Flow<Int> =
-        context.dataStore.data.map { it[KEY_USER_ID] ?: -1 }
+    val userId: Flow<Int>
+        get() = context.dataStore.data.map { it[KEY_USER_ID] ?: -1 }
 
-    val username: Flow<String> =
-        context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
+    val username: Flow<String>
+        get() = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
+
+    suspend fun isLoggedIn(): Boolean {
+        return context.dataStore.data
+            .map { it[KEY_USER_ID] ?: -1 }
+            .first() > 0
+    }
 
     suspend fun saveSession(userId: Int, username: String) {
         context.dataStore.edit { prefs ->

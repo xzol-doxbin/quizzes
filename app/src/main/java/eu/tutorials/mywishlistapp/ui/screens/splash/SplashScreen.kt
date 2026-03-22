@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import eu.tutorials.mywishlistapp.QuizApp
-import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
@@ -20,8 +19,7 @@ fun SplashScreen(
     val sessionManager = (context.applicationContext as QuizApp).container.sessionManager
 
     LaunchedEffect(Unit) {
-        val userId = sessionManager.userId.first()
-        if (userId > 0) onSessionFound() else onNoSession()
+        if (sessionManager.isLoggedIn()) onSessionFound() else onNoSession()
     }
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
