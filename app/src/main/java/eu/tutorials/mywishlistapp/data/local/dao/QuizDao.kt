@@ -34,6 +34,12 @@ interface QuizDao {
     @Query("SELECT * FROM quizzes WHERE id = :id LIMIT 1")
     suspend fun getQuizById(id: Int): QuizEntity?
 
+    @Query("SELECT * FROM quizzes WHERE remoteId = :remoteId LIMIT 1")
+    suspend fun getQuizByRemoteId(remoteId: String): QuizEntity?
+
     @Query("SELECT * FROM questions WHERE quizId = :quizId ORDER BY id ASC")
     suspend fun getQuestionsForQuiz(quizId: Int): List<QuestionEntity>
+
+    @Query("DELETE FROM questions WHERE quizId = :quizId")
+    suspend fun deleteQuestionsForQuiz(quizId: Int)
 }

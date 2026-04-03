@@ -1,15 +1,23 @@
 package eu.tutorials.mywishlistapp.data.repository
 
+import android.util.Log
+import eu.tutorials.mywishlistapp.data.local.SessionManager
 import eu.tutorials.mywishlistapp.data.local.dao.QuizDao
 import eu.tutorials.mywishlistapp.data.local.dao.QuizResultDao
 import eu.tutorials.mywishlistapp.data.local.entity.QuestionEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizResultEntity
+import eu.tutorials.mywishlistapp.data.remote.SupabaseService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 class QuizRepository(
     private val quizDao: QuizDao,
-    private val quizResultDao: QuizResultDao
+    private val quizResultDao: QuizResultDao,
+    private val supabaseService: SupabaseService,
+    private val sessionManager: SessionManager
 ) {
     fun getAllQuizzes(): Flow<List<QuizEntity>> = quizDao.getAllQuizzes()
 
@@ -26,7 +34,45 @@ class QuizRepository(
 
     suspend fun deleteQuiz(quiz: QuizEntity) = quizDao.deleteQuiz(quiz)
 
-    suspend fun saveResult(result: QuizResultEntity) = quizResultDao.insertResult(result)
+    suspend fun saveResult(result: QuizResultEntity) {
+        val quiz = quizDao.getQuizById(result.quizId)
+
+        if (quiz == null) {
+            Log.e(
+                "QuizRepository",
+                "saveResult skipped: quiz not found for quizId=${result.quizId}"
+            )
+            return
+        }
+
+        runCatching {
+            quizResultDao.insertResult(result)
+        }.onFailure {
+            Log.e(
+                "QuizRepository",
+                "saveResult local insert failed for quizId=${result.quizId}: ${it.message}",
+                it
+            )
+            return
+        }
+
+        val username = sessionManager.username.first()
+        val userId = sessionManager.userId.first()
+
+        runCatching {
+            supabaseService.uploadQuizResult(
+                username = username.ifBlank { "unknown" },
+                userLocalId = userId,
+                quizRemoteId = quiz.remoteId,
+                quizTitle = quiz.title,
+                score = result.score,
+                totalQuestions = result.totalQuestions,
+                completedAt = result.completedAt
+            )
+        }.onFailure {
+            Log.e("QuizRepository", "uploadQuizResult failed: ${it.message}", it)
+        }
+    }
 
     fun getResultsForUser(userId: Int): Flow<List<QuizResultEntity>> =
         quizResultDao.getResultsForUser(userId)
@@ -66,62 +112,61 @@ class QuizRepository(
                     optionsJson = toOptionsJson(listOf("when", "if", "for", "try")),
                     correctIndex = 1,
                     explanation = "if використовується для перевірки умови."
-                ),
-                QuestionEntity(
-                    quizId = 0,
-                    text = "Який тип колекції зберігає унікальні значення?",
-                    optionsJson = toOptionsJson(listOf("List", "Map", "Set", "Array")),
-                    correctIndex = 2,
-                    explanation = "Set не допускає дублювання елементів."
-                ),
-                QuestionEntity(
-                    quizId = 0,
-                    text = "Що таке Jetpack Compose?",
-                    optionsJson = toOptionsJson(
-                        listOf(
-                            "ORM для SQLite",
-                            "Декларативний UI toolkit",
-                            "Бібліотека для мережі",
-                            "Система DI"
-                        )
-                    ),
-                    correctIndex = 1,
-                    explanation = "Jetpack Compose — сучасний декларативний UI toolkit для Android."
                 )
             )
         )
+    }
 
-        saveQuizWithQuestions(
-            quiz = QuizEntity(
-                title = "Android Fundamentals",
-                description = "Перевір базові знання Android",
-                category = "Android",
-                source = "LOCAL"
-            ),
-            questions = listOf(
-                QuestionEntity(
-                    quizId = 0,
-                    text = "Який файл описує екранні переходи у Compose Navigation у цьому проєкті?",
-                    optionsJson = toOptionsJson(listOf("Theme.kt", "Screen.kt", "NavGraph.kt", "MainActivity.kt")),
-                    correctIndex = 2,
-                    explanation = "NavGraph.kt містить конфігурацію навігації."
-                ),
-                QuestionEntity(
-                    quizId = 0,
-                    text = "Що використовується як локальна БД у вимогах?",
-                    optionsJson = toOptionsJson(listOf("Firebase", "Realm", "SQLite через Room", "PostgreSQL")),
-                    correctIndex = 2,
-                    explanation = "У вимогах вказано SQLite через Room."
-                ),
-                QuestionEntity(
-                    quizId = 0,
-                    text = "Який компонент зберігає сесію користувача у цьому проєкті?",
-                    optionsJson = toOptionsJson(listOf("Retrofit", "SessionManager", "NavController", "SnackbarHost")),
-                    correctIndex = 1,
-                    explanation = "SessionManager працює через DataStore."
+    suspend fun syncSupabaseQuizzes() = withContext(Dispatchers.IO) {
+        val remoteQuizzes = supabaseService.fetchQuizzes()
+        if (remoteQuizzes.isEmpty()) {
+            Log.d("QuizRepository", "syncSupabaseQuizzes: remote list is empty")
+            return@withContext
+        }
+
+        remoteQuizzes.forEach { remoteQuiz ->
+            val existingQuiz = quizDao.getQuizByRemoteId(remoteQuiz.id)
+
+            val localQuizId = if (existingQuiz == null) {
+                quizDao.insertQuiz(
+                    QuizEntity(
+                        remoteId = remoteQuiz.id,
+                        title = remoteQuiz.title,
+                        description = remoteQuiz.description,
+                        category = remoteQuiz.category,
+                        source = "SUPABASE",
+                        createdAt = remoteQuiz.createdAt
+                    )
+                ).toInt()
+            } else {
+                quizDao.updateQuiz(
+                    existingQuiz.copy(
+                        title = remoteQuiz.title,
+                        description = remoteQuiz.description,
+                        category = remoteQuiz.category,
+                        source = "SUPABASE",
+                        createdAt = remoteQuiz.createdAt
+                    )
                 )
-            )
-        )
+                existingQuiz.id
+            }
+
+            quizDao.deleteQuestionsForQuiz(localQuizId)
+
+            val localQuestions = remoteQuiz.questions.map { remoteQuestion ->
+                QuestionEntity(
+                    quizId = localQuizId,
+                    text = remoteQuestion.text,
+                    optionsJson = toOptionsJson(remoteQuestion.options),
+                    correctIndex = remoteQuestion.correctIndex,
+                    explanation = remoteQuestion.explanation
+                )
+            }
+
+            quizDao.insertQuestions(localQuestions)
+        }
+
+        Log.d("QuizRepository", "syncSupabaseQuizzes: synced ${remoteQuizzes.size} quizzes")
     }
 
     private fun toOptionsJson(options: List<String>): String {
