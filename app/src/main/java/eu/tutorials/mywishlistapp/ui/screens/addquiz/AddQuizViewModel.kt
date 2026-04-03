@@ -10,6 +10,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+data class QuestionDraftInput(
+    val text: String = "",
+    val optionA: String = "",
+    val optionB: String = "",
+    val optionC: String = "",
+    val optionD: String = "",
+    val correctIndex: Int = 0
+)
+
 class AddQuizViewModel(
     private val quizRepository: QuizRepository
 ) : ViewModel() {
@@ -20,22 +29,28 @@ class AddQuizViewModel(
     fun saveQuiz(
         title: String,
         description: String,
-        question: String,
-        optionA: String,
-        optionB: String,
-        optionC: String,
-        optionD: String,
-        correctIndex: Int
+        questions: List<QuestionDraftInput>
     ) {
-        if (
-            title.isBlank() ||
-            question.isBlank() ||
-            optionA.isBlank() ||
-            optionB.isBlank() ||
-            optionC.isBlank() ||
-            optionD.isBlank()
-        ) {
-            _state.value = UiState.Error("Заповни всі поля")
+        if (title.isBlank()) {
+            _state.value = UiState.Error("Введи назву квізу")
+            return
+        }
+
+        if (questions.isEmpty()) {
+            _state.value = UiState.Error("Додай хоча б одне питання")
+            return
+        }
+
+        val invalidQuestionIndex = questions.indexOfFirst { question ->
+            question.text.isBlank() ||
+                    question.optionA.isBlank() ||
+                    question.optionB.isBlank() ||
+                    question.optionC.isBlank() ||
+                    question.optionD.isBlank()
+        }
+
+        if (invalidQuestionIndex != -1) {
+            _state.value = UiState.Error("Заповни всі поля в питанні ${invalidQuestionIndex + 1}")
             return
         }
 
@@ -49,20 +64,22 @@ class AddQuizViewModel(
                         category = "Власний",
                         source = "LOCAL"
                     ),
-                    questions = listOf(
+                    questions = questions.map { question ->
                         QuestionEntity(
                             quizId = 0,
-                            text = question.trim(),
-                            optionsJson = listOf(optionA, optionB, optionC, optionD)
-                                .joinToString(
-                                    prefix = "[\"",
-                                    postfix = "\"]",
-                                    separator = "\",\""
-                                ) { it.trim().replace("\"", "\\\"") },
-                            correctIndex = correctIndex,
+                            text = question.text.trim(),
+                            optionsJson = toOptionsJson(
+                                listOf(
+                                    question.optionA.trim(),
+                                    question.optionB.trim(),
+                                    question.optionC.trim(),
+                                    question.optionD.trim()
+                                )
+                            ),
+                            correctIndex = question.correctIndex,
                             explanation = ""
                         )
-                    )
+                    }
                 )
                 _state.value = UiState.Success(Unit)
             } catch (exception: Exception) {
@@ -73,5 +90,13 @@ class AddQuizViewModel(
 
     fun resetState() {
         _state.value = UiState.Idle
+    }
+
+    private fun toOptionsJson(options: List<String>): String {
+        return options.joinToString(
+            prefix = "[\"",
+            postfix = "\"]",
+            separator = "\",\""
+        ) { it.replace("\"", "\\\"") }
     }
 }
