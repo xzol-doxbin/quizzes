@@ -28,6 +28,7 @@ class AppContainer(context: Context) {
     val quizRepository = QuizRepository(
         quizDao = database.quizDao(),
         quizResultDao = database.quizResultDao(),
+        userDao = database.userDao(),
         supabaseService = supabaseService,
         sessionManager = sessionManager
     )

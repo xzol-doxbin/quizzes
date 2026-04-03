@@ -9,7 +9,7 @@ import eu.tutorials.mywishlistapp.data.local.entity.UserEntity
 @Dao
 interface UserDao {
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UserEntity): Long
 
     @Query("SELECT * FROM users WHERE username = :username LIMIT 1")

@@ -4,6 +4,7 @@ import android.util.Log
 import eu.tutorials.mywishlistapp.data.local.SessionManager
 import eu.tutorials.mywishlistapp.data.local.dao.QuizDao
 import eu.tutorials.mywishlistapp.data.local.dao.QuizResultDao
+import eu.tutorials.mywishlistapp.data.local.dao.UserDao
 import eu.tutorials.mywishlistapp.data.local.entity.QuestionEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizResultEntity
@@ -16,6 +17,7 @@ import kotlinx.coroutines.withContext
 class QuizRepository(
     private val quizDao: QuizDao,
     private val quizResultDao: QuizResultDao,
+    private val userDao: UserDao,
     private val supabaseService: SupabaseService,
     private val sessionManager: SessionManager
 ) {
@@ -36,39 +38,61 @@ class QuizRepository(
 
     suspend fun saveResult(result: QuizResultEntity) {
         val quiz = quizDao.getQuizById(result.quizId)
-
         if (quiz == null) {
+            Log.e("QuizRepository", "saveResult skipped: quiz not found for quizId=${result.quizId}")
+            return
+        }
+
+        val sessionUserId = sessionManager.userId.first()
+        val sessionUsername = sessionManager.username.first()
+
+        val validUser = when {
+            sessionUserId > 0 -> {
+                userDao.getUserById(sessionUserId)
+                    ?: if (sessionUsername.isNotBlank()) userDao.getUserByUsername(sessionUsername) else null
+            }
+            sessionUsername.isNotBlank() -> {
+                userDao.getUserByUsername(sessionUsername)
+            }
+            else -> null
+        }
+
+        if (validUser == null) {
             Log.e(
                 "QuizRepository",
-                "saveResult skipped: quiz not found for quizId=${result.quizId}"
+                "saveResult skipped: valid user not found. sessionUserId=$sessionUserId username=$sessionUsername"
             )
             return
         }
 
+        val safeResult = result.copy(
+            userId = validUser.id,
+            quizId = quiz.id
+        )
+
         runCatching {
-            quizResultDao.insertResult(result)
+            quizResultDao.insertResult(safeResult)
         }.onFailure {
             Log.e(
                 "QuizRepository",
-                "saveResult local insert failed for quizId=${result.quizId}: ${it.message}",
+                "saveResult local insert failed: userId=${safeResult.userId} quizId=${safeResult.quizId} error=${it.message}",
                 it
             )
             return
         }
 
-        val username = sessionManager.username.first()
-        val userId = sessionManager.userId.first()
-
         runCatching {
-            supabaseService.uploadQuizResult(
-                username = username.ifBlank { "unknown" },
-                userLocalId = userId,
-                quizRemoteId = quiz.remoteId,
-                quizTitle = quiz.title,
-                score = result.score,
-                totalQuestions = result.totalQuestions,
-                completedAt = result.completedAt
-            )
+            withContext(Dispatchers.IO) {
+                supabaseService.uploadQuizResult(
+                    username = validUser.username,
+                    userLocalId = validUser.id,
+                    quizRemoteId = quiz.remoteId,
+                    quizTitle = quiz.title,
+                    score = safeResult.score,
+                    totalQuestions = safeResult.totalQuestions,
+                    completedAt = safeResult.completedAt
+                )
+            }
         }.onFailure {
             Log.e("QuizRepository", "uploadQuizResult failed: ${it.message}", it)
         }
