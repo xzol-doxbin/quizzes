@@ -28,6 +28,9 @@ interface QuizDao {
     @Query("SELECT * FROM quizzes ORDER BY createdAt DESC")
     fun getAllQuizzes(): Flow<List<QuizEntity>>
 
+    @Query("SELECT * FROM quizzes ORDER BY createdAt DESC")
+    suspend fun getAllQuizzesOnce(): List<QuizEntity>
+
     @Query("SELECT * FROM quizzes WHERE id = :id LIMIT 1")
     suspend fun getQuizById(id: Int): QuizEntity?
 

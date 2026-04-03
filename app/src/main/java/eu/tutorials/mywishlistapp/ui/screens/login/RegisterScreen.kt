@@ -31,14 +31,17 @@ fun RegisterScreen(
         }
     )
 
-    var username   by remember { mutableStateOf("") }
-    var password   by remember { mutableStateOf("") }
-    var confirm    by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(state) {
-        if (state is UiState.Success) { viewModel.resetState(); onRegisterSuccess() }
+        if (state is UiState.Success) {
+            viewModel.resetState()
+            onRegisterSuccess()
+        }
     }
 
     Scaffold(
@@ -54,45 +57,86 @@ fun RegisterScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 32.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            OutlinedTextField(value = username, onValueChange = { username = it },
-                label = { Text("Логін") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Логін") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(value = password, onValueChange = { password = it },
-                label = { Text("Пароль") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Пароль") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+            )
+
             Spacer(Modifier.height(12.dp))
-            OutlinedTextField(value = confirm, onValueChange = { confirm = it; localError = "" },
-                label = { Text("Підтвердити пароль") }, modifier = Modifier.fillMaxWidth(),
-                singleLine = true, isError = localError.isNotEmpty(),
+
+            OutlinedTextField(
+                value = confirm,
+                onValueChange = {
+                    confirm = it
+                    localError = ""
+                },
+                label = { Text("Підтвердити пароль") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = localError.isNotEmpty(),
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                supportingText = if (localError.isNotEmpty()) {{ Text(localError) }} else null)
+                supportingText = if (localError.isNotEmpty()) {
+                    { Text(localError) }
+                } else {
+                    null
+                }
+            )
 
             if (state is UiState.Error) {
                 Spacer(Modifier.height(8.dp))
-                Text((state as UiState.Error).message,
+                Text(
+                    (state as UiState.Error).message,
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             Spacer(Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    if (password != confirm) { localError = "Паролі не збігаються"; return@Button }
+                    if (password != confirm) {
+                        localError = "Паролі не збігаються"
+                        return@Button
+                    }
                     viewModel.register(username, password)
                 },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
                 enabled = state !is UiState.Loading
             ) {
-                if (state is UiState.Loading)
-                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                else Text("Зареєструватись")
+                if (state is UiState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Зареєструватись")
+                }
             }
         }
     }
