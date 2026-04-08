@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tutorials.mywishlistapp.data.local.entity.QuestionEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizEntity
+import eu.tutorials.mywishlistapp.data.remote.OpenAiQuizService
 import eu.tutorials.mywishlistapp.data.repository.QuizRepository
 import eu.tutorials.mywishlistapp.util.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,15 +17,26 @@ data class QuestionDraftInput(
     val optionB: String = "",
     val optionC: String = "",
     val optionD: String = "",
-    val correctIndex: Int = 0
+    val correctIndex: Int = 0,
+    val explanation: String = ""
 )
 
 class AddQuizViewModel(
-    private val quizRepository: QuizRepository
+    private val quizRepository: QuizRepository,
+    private val openAiQuizService: OpenAiQuizService
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val state: StateFlow<UiState<Unit>> = _state
+
+    private val _generateState = MutableStateFlow<UiState<OpenAiGeneratedQuiz>>(UiState.Idle)
+    val generateState: StateFlow<UiState<OpenAiGeneratedQuiz>> = _generateState
+
+    data class OpenAiGeneratedQuiz(
+        val title: String,
+        val description: String,
+        val questions: List<QuestionDraftInput>
+    )
 
     fun saveQuiz(
         title: String,
@@ -77,7 +89,7 @@ class AddQuizViewModel(
                                 )
                             ),
                             correctIndex = question.correctIndex,
-                            explanation = ""
+                            explanation = question.explanation.trim()
                         )
                     }
                 )
@@ -90,6 +102,45 @@ class AddQuizViewModel(
 
     fun resetState() {
         _state.value = UiState.Idle
+    }
+
+    fun generateWithOpenAi(topic: String, questionCount: Int) {
+        if (topic.isBlank()) {
+            _generateState.value = UiState.Error("Введи тему для генерації")
+            return
+        }
+
+        viewModelScope.launch {
+            _generateState.value = UiState.Loading
+            runCatching {
+                openAiQuizService.generateQuiz(topic.trim(), questionCount)
+            }.onSuccess { payload ->
+                val drafts = payload.questions.map { q ->
+                    QuestionDraftInput(
+                        text = q.text,
+                        optionA = q.options[0],
+                        optionB = q.options[1],
+                        optionC = q.options[2],
+                        optionD = q.options[3],
+                        correctIndex = q.correctIndex,
+                        explanation = q.explanation
+                    )
+                }
+                _generateState.value = UiState.Success(
+                    OpenAiGeneratedQuiz(
+                        title = payload.title,
+                        description = payload.description.ifBlank { "Згенеровано через OpenAI" },
+                        questions = drafts
+                    )
+                )
+            }.onFailure { e ->
+                _generateState.value = UiState.Error(e.message ?: "Не вдалося згенерувати квіз")
+            }
+        }
+    }
+
+    fun resetGenerateState() {
+        _generateState.value = UiState.Idle
     }
 
     private fun toOptionsJson(options: List<String>): String {

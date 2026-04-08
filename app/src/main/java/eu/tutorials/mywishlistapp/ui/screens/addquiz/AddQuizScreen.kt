@@ -1,7 +1,6 @@
 package eu.tutorials.mywishlistapp.ui.screens.addquiz
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,12 +27,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,8 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import eu.tutorials.mywishlistapp.QuizApp
+import eu.tutorials.mywishlistapp.data.remote.OpenAiQuizService
 import eu.tutorials.mywishlistapp.util.UiState
 import eu.tutorials.mywishlistapp.util.ViewModelFactory
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,11 +59,12 @@ fun AddQuizScreen(
     val container = (context.applicationContext as QuizApp).container
     val viewModel: AddQuizViewModel = viewModel(
         factory = ViewModelFactory {
-            AddQuizViewModel(container.quizRepository)
+            AddQuizViewModel(container.quizRepository, container.openAiQuizService)
         }
     )
 
     val state by viewModel.state.collectAsState()
+    val generateState by viewModel.generateState.collectAsState()
 
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -72,10 +76,23 @@ fun AddQuizScreen(
         )
     }
 
+    var aiTopic by remember { mutableStateOf("") }
+    var questionCount by remember { mutableIntStateOf(5) }
+
     LaunchedEffect(state) {
         if (state is UiState.Success) {
             viewModel.resetState()
             onSaved()
+        }
+    }
+
+    LaunchedEffect(generateState) {
+        val current = generateState
+        if (current is UiState.Success) {
+            title = current.data.title
+            description = current.data.description
+            questions = current.data.questions
+            viewModel.resetGenerateState()
         }
     }
 
@@ -114,10 +131,68 @@ fun AddQuizScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Divider(modifier = Modifier.padding(vertical = 4.dp))
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Питання",
+                text = "Генерація через ChatGPT (OpenAI)",
+                style = MaterialTheme.typography.titleLarge
+            )
+            Text(
+                text = "Ключ API: OPENAI_API_KEY у local.properties (не коміть у git).",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedTextField(
+                value = aiTopic,
+                onValueChange = { aiTopic = it },
+                label = { Text("Тема квізу для AI") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = false,
+                minLines = 2
+            )
+
+            Text(
+                text = "Кількість питань: $questionCount",
+                style = MaterialTheme.typography.titleSmall
+            )
+            Slider(
+                value = questionCount.toFloat(),
+                onValueChange = { questionCount = it.roundToInt().coerceIn(OpenAiQuizService.MIN_QUESTIONS, OpenAiQuizService.MAX_QUESTIONS) },
+                valueRange = OpenAiQuizService.MIN_QUESTIONS.toFloat()..OpenAiQuizService.MAX_QUESTIONS.toFloat(),
+                steps = OpenAiQuizService.MAX_QUESTIONS - OpenAiQuizService.MIN_QUESTIONS - 1,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (generateState is UiState.Error) {
+                Text(
+                    text = (generateState as UiState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            OutlinedButton(
+                onClick = {
+                    viewModel.generateWithOpenAi(aiTopic, questionCount)
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = generateState !is UiState.Loading && state !is UiState.Loading
+            ) {
+                if (generateState is UiState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.height(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Згенерувати квіз")
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Text(
+                text = "Питання (вручну або після генерації)",
                 style = MaterialTheme.typography.titleLarge
             )
 
@@ -166,7 +241,7 @@ fun AddQuizScreen(
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = state !is UiState.Loading
+                enabled = state !is UiState.Loading && generateState !is UiState.Loading
             ) {
                 if (state is UiState.Loading) {
                     CircularProgressIndicator(
@@ -224,6 +299,14 @@ private fun QuestionEditorCard(
                 label = { Text("Текст питання") },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (question.explanation.isNotBlank()) {
+                Text(
+                    text = "Пояснення (з AI): ${question.explanation}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             OutlinedTextField(
                 value = question.optionA,
