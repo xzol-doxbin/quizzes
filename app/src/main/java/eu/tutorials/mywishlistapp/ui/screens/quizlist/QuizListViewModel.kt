@@ -2,37 +2,46 @@ package eu.tutorials.mywishlistapp.ui.screens.quizlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tutorials.mywishlistapp.data.local.SessionManager
 import eu.tutorials.mywishlistapp.data.local.entity.QuizEntity
 import eu.tutorials.mywishlistapp.data.repository.QuizRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class QuizListUiState(
-    val isLoading: Boolean = true,
+    val isInitialLoading: Boolean = true,
     val quizzes: List<QuizEntity> = emptyList(),
     val isSyncing: Boolean = false,
     val message: String? = null
 )
 
 class QuizListViewModel(
-    private val quizRepository: QuizRepository
+    private val quizRepository: QuizRepository,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val isSyncing = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
+    private val initialWorkComplete = MutableStateFlow(false)
+
+    private val quizzesForUser = sessionManager.userId.flatMapLatest { uid ->
+        val effectiveId = uid.takeIf { it > 0 } ?: -1
+        quizRepository.observeQuizzesForUser(effectiveId)
+    }
 
     val uiState: StateFlow<QuizListUiState> = combine(
-        quizRepository.getAllQuizzes().map { it },
+        quizzesForUser,
         isSyncing,
-        message
-    ) { quizzes, syncing, currentMessage ->
+        message,
+        initialWorkComplete
+    ) { quizzes, syncing, currentMessage, workDone ->
         QuizListUiState(
-            isLoading = false,
+            isInitialLoading = !workDone,
             quizzes = quizzes,
             isSyncing = syncing,
             message = currentMessage
@@ -46,15 +55,19 @@ class QuizListViewModel(
     init {
         viewModelScope.launch {
             quizRepository.seedDemoQuizzesIfEmpty()
-            syncFromSupabase()
+            performSync()
+            initialWorkComplete.value = true
         }
     }
 
     fun syncFromSupabase() {
-        viewModelScope.launch {
-            isSyncing.value = true
-            message.value = null
+        viewModelScope.launch { performSync() }
+    }
 
+    private suspend fun performSync() {
+        isSyncing.value = true
+        message.value = null
+        try {
             runCatching {
                 quizRepository.syncSupabaseQuizzes()
             }.onSuccess {
@@ -62,7 +75,7 @@ class QuizListViewModel(
             }.onFailure {
                 message.value = "Помилка синхронізації: ${it.message}"
             }
-
+        } finally {
             isSyncing.value = false
         }
     }

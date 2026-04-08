@@ -45,8 +45,11 @@ class QuizPlayViewModel(
         viewModelScope.launch {
             _uiState.value = QuizPlayUiState(isLoading = true)
 
-            val quiz = quizRepository.getQuizById(quizId)
-            val questions = quizRepository.getQuestionsForQuiz(quizId)
+            val sessionUserId = sessionManager.userId.first()
+            val effectiveUserId = sessionUserId.takeIf { it > 0 } ?: -1
+            val quiz = quizRepository.getQuizByIdVisibleToUser(quizId, effectiveUserId)
+            val questions =
+                if (quiz != null) quizRepository.getQuestionsForQuiz(quizId) else emptyList()
 
             if (quiz == null || questions.isEmpty()) {
                 _uiState.value = QuizPlayUiState(

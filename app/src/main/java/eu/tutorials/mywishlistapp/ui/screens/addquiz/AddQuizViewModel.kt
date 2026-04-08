@@ -2,6 +2,7 @@ package eu.tutorials.mywishlistapp.ui.screens.addquiz
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import eu.tutorials.mywishlistapp.data.local.SessionManager
 import eu.tutorials.mywishlistapp.data.local.entity.QuestionEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizEntity
 import eu.tutorials.mywishlistapp.data.remote.OpenAiQuizService
@@ -9,6 +10,7 @@ import eu.tutorials.mywishlistapp.data.repository.QuizRepository
 import eu.tutorials.mywishlistapp.util.UiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class QuestionDraftInput(
@@ -23,7 +25,8 @@ data class QuestionDraftInput(
 
 class AddQuizViewModel(
     private val quizRepository: QuizRepository,
-    private val openAiQuizService: OpenAiQuizService
+    private val openAiQuizService: OpenAiQuizService,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<UiState<Unit>>(UiState.Idle)
@@ -69,8 +72,14 @@ class AddQuizViewModel(
         viewModelScope.launch {
             _state.value = UiState.Loading
             try {
+                val userId = sessionManager.userId.first()
+                if (userId <= 0) {
+                    _state.value = UiState.Error("Увійди в акаунт, щоб зберегти власний квіз")
+                    return@launch
+                }
                 quizRepository.saveQuizWithQuestions(
                     quiz = QuizEntity(
+                        ownerUserId = userId,
                         title = title.trim(),
                         description = description.trim().ifBlank { "Користувацький квіз" },
                         category = "Власний",

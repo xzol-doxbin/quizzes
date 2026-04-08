@@ -24,7 +24,15 @@ class QuizRepository(
 ) {
     fun getAllQuizzes(): Flow<List<QuizEntity>> = quizDao.getAllQuizzes()
 
+    fun observeQuizzesForUser(userId: Int): Flow<List<QuizEntity>> =
+        if (userId > 0) quizDao.getQuizzesVisibleToUser(userId)
+        else quizDao.getGlobalQuizzesOnly()
+
     suspend fun getQuizById(id: Int): QuizEntity? = quizDao.getQuizById(id)
+
+    suspend fun getQuizByIdVisibleToUser(quizId: Int, userId: Int): QuizEntity? =
+        if (userId > 0) quizDao.getQuizByIdVisibleToUser(quizId, userId)
+        else quizDao.getQuizByIdIfGlobal(quizId)
 
     suspend fun getQuestionsForQuiz(quizId: Int): List<QuestionEntity> =
         quizDao.getQuestionsForQuiz(quizId)
@@ -38,12 +46,6 @@ class QuizRepository(
     suspend fun deleteQuiz(quiz: QuizEntity) = quizDao.deleteQuiz(quiz)
 
     suspend fun saveResult(result: QuizResultEntity) {
-        val quiz = quizDao.getQuizById(result.quizId)
-        if (quiz == null) {
-            Log.e("QuizRepository", "saveResult skipped: quiz not found for quizId=${result.quizId}")
-            return
-        }
-
         val sessionUserId = sessionManager.userId.first()
         val sessionUsername = sessionManager.username.first()
 
@@ -63,6 +65,12 @@ class QuizRepository(
                 "QuizRepository",
                 "saveResult skipped: valid user not found. sessionUserId=$sessionUserId username=$sessionUsername"
             )
+            return
+        }
+
+        val quiz = getQuizByIdVisibleToUser(result.quizId, validUser.id)
+        if (quiz == null) {
+            Log.e("QuizRepository", "saveResult skipped: квіз недоступний для userId=${validUser.id} quizId=${result.quizId}")
             return
         }
 
@@ -109,11 +117,11 @@ class QuizRepository(
         quizResultDao.getRecentAverageRatio(userId) ?: 0f
 
     suspend fun seedDemoQuizzesIfEmpty() {
-        val existing = quizDao.getAllQuizzesOnce()
-        if (existing.isNotEmpty()) return
+        if (quizDao.countGlobalQuizzes() > 0) return
 
         saveQuizWithQuestions(
             quiz = QuizEntity(
+                ownerUserId = null,
                 title = "Kotlin Basics",
                 description = "5 базових питань по Kotlin",
                 category = "Програмування",
@@ -159,6 +167,7 @@ class QuizRepository(
                 quizDao.insertQuiz(
                     QuizEntity(
                         remoteId = remoteQuiz.id,
+                        ownerUserId = null,
                         title = remoteQuiz.title,
                         description = remoteQuiz.description,
                         category = remoteQuiz.category,
@@ -169,6 +178,7 @@ class QuizRepository(
             } else {
                 quizDao.updateQuiz(
                     existingQuiz.copy(
+                        ownerUserId = null,
                         title = remoteQuiz.title,
                         description = remoteQuiz.description,
                         category = remoteQuiz.category,

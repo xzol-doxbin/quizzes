@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -59,7 +60,11 @@ fun AddQuizScreen(
     val container = (context.applicationContext as QuizApp).container
     val viewModel: AddQuizViewModel = viewModel(
         factory = ViewModelFactory {
-            AddQuizViewModel(container.quizRepository, container.openAiQuizService)
+            AddQuizViewModel(
+                container.quizRepository,
+                container.openAiQuizService,
+                container.sessionManager
+            )
         }
     )
 
@@ -176,13 +181,15 @@ fun AddQuizScreen(
                 onClick = {
                     viewModel.generateWithOpenAi(aiTopic, questionCount)
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 enabled = generateState !is UiState.Loading && state !is UiState.Loading
             ) {
                 if (generateState is UiState.Loading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
-                        strokeWidth = 2.dp
+                        modifier = Modifier.size(28.dp),
+                        strokeWidth = 2.5.dp
                     )
                 } else {
                     Text("Згенерувати квіз")

@@ -17,7 +17,7 @@ import eu.tutorials.mywishlistapp.data.local.entity.UserEntity
         QuestionEntity::class,
         QuizResultEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class QuizDatabase : RoomDatabase() {
