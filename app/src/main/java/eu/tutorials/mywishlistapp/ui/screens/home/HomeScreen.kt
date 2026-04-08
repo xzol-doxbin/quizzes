@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +20,7 @@ import eu.tutorials.mywishlistapp.util.ViewModelFactory
 @Composable
 fun HomeScreen(
     onNavigateToQuizList: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     onNavigateToAddQuiz: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -69,6 +71,15 @@ fun HomeScreen(
                 Icon(Icons.Default.List, contentDescription = null,
                     modifier = Modifier.padding(end = 8.dp))
                 Text("Пройти квіз")
+            }
+            Spacer(Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = onNavigateToHistory,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Icon(Icons.Default.Assessment, contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp))
+                Text("Мої результати")
             }
             Spacer(Modifier.height(16.dp))
             OutlinedButton(

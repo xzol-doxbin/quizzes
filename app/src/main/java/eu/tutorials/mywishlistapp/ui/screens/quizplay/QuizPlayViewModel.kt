@@ -18,6 +18,7 @@ data class QuizPlayUiState(
     val questions: List<QuestionEntity> = emptyList(),
     val currentQuestionIndex: Int = 0,
     val selectedOptionIndex: Int? = null,
+    val answerRevealed: Boolean = false,
     val score: Int = 0,
     val isCompleted: Boolean = false,
     val errorMessage: String? = null
@@ -38,7 +39,8 @@ class QuizPlayViewModel(
     val uiState: StateFlow<QuizPlayUiState> = _uiState
 
     fun loadQuiz(quizId: Int) {
-        if (_uiState.value.quiz?.id == quizId && _uiState.value.questions.isNotEmpty()) return
+        val s = _uiState.value
+        if (s.quiz?.id == quizId && s.questions.isNotEmpty() && !s.isCompleted) return
 
         viewModelScope.launch {
             _uiState.value = QuizPlayUiState(isLoading = true)
@@ -63,6 +65,7 @@ class QuizPlayViewModel(
     }
 
     fun selectOption(index: Int) {
+        if (_uiState.value.answerRevealed) return
         _uiState.value = _uiState.value.copy(selectedOptionIndex = index)
     }
 
@@ -71,10 +74,17 @@ class QuizPlayViewModel(
         val selectedOptionIndex = state.selectedOptionIndex ?: return
         val currentQuestion = state.currentQuestion ?: return
 
-        val newScore = if (selectedOptionIndex == currentQuestion.correctIndex) {
-            state.score + 1
-        } else {
-            state.score
+        if (!state.answerRevealed) {
+            val newScore = if (selectedOptionIndex == currentQuestion.correctIndex) {
+                state.score + 1
+            } else {
+                state.score
+            }
+            _uiState.value = state.copy(
+                answerRevealed = true,
+                score = newScore
+            )
+            return
         }
 
         val isLastQuestion = state.currentQuestionIndex == state.questions.lastIndex
@@ -87,24 +97,20 @@ class QuizPlayViewModel(
                         QuizResultEntity(
                             userId = userId,
                             quizId = state.quiz.id,
-                            score = newScore,
+                            score = state.score,
                             totalQuestions = state.questions.size
                         )
                     )
                 }
 
-                _uiState.value = state.copy(
-                    selectedOptionIndex = selectedOptionIndex,
-                    score = newScore,
-                    isCompleted = true
-                )
-                onFinished(newScore, state.questions.size)
+                _uiState.value = state.copy(isCompleted = true)
+                onFinished(state.score, state.questions.size)
             }
         } else {
             _uiState.value = state.copy(
                 currentQuestionIndex = state.currentQuestionIndex + 1,
                 selectedOptionIndex = null,
-                score = newScore
+                answerRevealed = false
             )
         }
     }

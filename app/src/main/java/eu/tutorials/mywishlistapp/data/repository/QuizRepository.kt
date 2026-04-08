@@ -8,6 +8,7 @@ import eu.tutorials.mywishlistapp.data.local.dao.UserDao
 import eu.tutorials.mywishlistapp.data.local.entity.QuestionEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizEntity
 import eu.tutorials.mywishlistapp.data.local.entity.QuizResultEntity
+import eu.tutorials.mywishlistapp.data.local.model.QuizResultListItem
 import eu.tutorials.mywishlistapp.data.remote.SupabaseService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -100,6 +101,9 @@ class QuizRepository(
 
     fun getResultsForUser(userId: Int): Flow<List<QuizResultEntity>> =
         quizResultDao.getResultsForUser(userId)
+
+    fun observeResultsWithQuizTitles(userId: Int): Flow<List<QuizResultListItem>> =
+        quizResultDao.observeResultsWithQuizTitle(userId)
 
     suspend fun getRecentAverageRatio(userId: Int): Float =
         quizResultDao.getRecentAverageRatio(userId) ?: 0f

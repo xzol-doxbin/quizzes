@@ -1,5 +1,6 @@
 package eu.tutorials.mywishlistapp.ui.screens.quizplay
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -117,11 +119,43 @@ fun QuizPlayScreen(
                         options.forEachIndexed { index, option ->
                             OptionRow(
                                 text = option,
+                                index = index,
                                 selected = uiState.selectedOptionIndex == index,
+                                answerRevealed = uiState.answerRevealed,
+                                correctIndex = question.correctIndex,
                                 onSelect = { viewModel.selectOption(index) }
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
+
+                        if (uiState.answerRevealed) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            val wasCorrect =
+                                uiState.selectedOptionIndex == question.correctIndex
+                            Text(
+                                text = if (wasCorrect) "Правильно!" else "Неправильно",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (wasCorrect) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                }
+                            )
+                            if (question.explanation.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = question.explanation,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    val actionLabel = when {
+                        !uiState.answerRevealed -> "Перевірити"
+                        uiState.currentQuestionIndex == uiState.totalQuestions - 1 -> "Завершити"
+                        else -> "Наступне питання"
                     }
 
                     Button(
@@ -131,13 +165,7 @@ fun QuizPlayScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = uiState.selectedOptionIndex != null
                     ) {
-                        Text(
-                            if (uiState.currentQuestionIndex == uiState.totalQuestions - 1) {
-                                "Завершити"
-                            } else {
-                                "Далі"
-                            }
-                        )
+                        Text(actionLabel)
                     }
                 }
             }
@@ -148,14 +176,27 @@ fun QuizPlayScreen(
 @Composable
 private fun OptionRow(
     text: String,
+    index: Int,
     selected: Boolean,
+    answerRevealed: Boolean,
+    correctIndex: Int,
     onSelect: () -> Unit
 ) {
+    val highlight = when {
+        answerRevealed && index == correctIndex ->
+            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.85f)
+        answerRevealed && selected && index != correctIndex ->
+            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .background(highlight, RoundedCornerShape(10.dp))
             .selectable(
                 selected = selected,
+                enabled = !answerRevealed,
                 onClick = onSelect,
                 role = Role.RadioButton
             )

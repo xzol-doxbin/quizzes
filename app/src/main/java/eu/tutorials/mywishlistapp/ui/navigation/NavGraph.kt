@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import eu.tutorials.mywishlistapp.ui.screens.addquiz.AddQuizScreen
+import eu.tutorials.mywishlistapp.ui.screens.history.HistoryScreen
 import eu.tutorials.mywishlistapp.ui.screens.home.HomeScreen
 import eu.tutorials.mywishlistapp.ui.screens.login.LoginScreen
 import eu.tutorials.mywishlistapp.ui.screens.login.RegisterScreen
@@ -63,12 +64,19 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToQuizList = { navController.navigate(Screen.QuizList.route) },
+                onNavigateToHistory = { navController.navigate(Screen.History.route) },
                 onNavigateToAddQuiz  = { navController.navigate(Screen.AddQuiz.route) },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(Screen.History.route) {
+            HistoryScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

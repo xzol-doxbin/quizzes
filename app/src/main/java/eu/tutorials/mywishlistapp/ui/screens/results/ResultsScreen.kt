@@ -48,7 +48,7 @@ fun ResultsScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Результат уже збережено локально, а для Supabase буде відправлено під час проходження.",
+            text = "Результат збережено локально; якщо налаштовано Supabase, він також відправлений на сервер.",
             style = MaterialTheme.typography.bodyMedium
         )
 

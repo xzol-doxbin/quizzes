@@ -12,7 +12,6 @@ val openAiApiKey: String = run {
     if (file.exists()) {
         file.inputStream().use { props.load(it) }
     }
-    props.getProperty("OPENAI_API_KEY", "").trim()
 }
 
 android {
