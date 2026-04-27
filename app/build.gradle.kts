@@ -1,32 +1,48 @@
-import java.util.Properties
+﻿import java.util.Properties
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("kotlin-kapt")
+    id("jacoco")
 }
 
-val openAiApiKey: String = run {
-    val props = Properties()
+val localProps = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) {
-        file.inputStream().use { props.load(it) }
+        file.inputStream().use { load(it) }
     }
 }
 
+fun prop(name: String): String = localProps.getProperty(name, "")
+
+val openAiApiKey: String = prop("OPENAI_API_KEY")
+val supabaseUrl: String = prop("SUPABASE_URL")
+val supabaseAnonKey: String = prop("SUPABASE_ANON_KEY")
+
 android {
-    namespace = "eu.tutorials.mywishlistapp"
+    namespace = "ua.edu.quizapp"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "eu.tutorials.mywishlistapp"
+        applicationId = "ua.edu.quizapp"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "SUPABASE_URL", "\"https://YOUR_PROJECT_ID.supabase.co\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"YOUR_SUPABASE_ANON_KEY\"")
+        buildConfigField(
+            "String",
+            "SUPABASE_URL",
+            "\"${supabaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+        buildConfigField(
+            "String",
+            "SUPABASE_ANON_KEY",
+            "\"${supabaseAnonKey.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
         buildConfigField(
             "String",
             "OPENAI_API_KEY",
@@ -47,6 +63,10 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
     }
 
     compileOptions {
@@ -70,6 +90,63 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+
+    val coveredClassIncludes = listOf(
+        "**/ua/edu/quizapp/ui/model/QuestionOptionParserKt.class",
+        "**/ua/edu/quizapp/ui/screens/quizplay/AdaptiveQuizEngine.class"
+    )
+
+    val debugTree = fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+        include(coveredClassIncludes)
+    }
+    val mainSrc = "${project.projectDir}/src/main/java"
+
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    executionData.setFrom(fileTree(layout.buildDirectory.get()) {
+        include("**/*.exec", "**/*.ec")
+    })
+}
+
+tasks.register<JacocoCoverageVerification>("jacocoCoverageVerification") {
+    dependsOn("jacocoTestReport")
+
+    val coveredClassIncludes = listOf(
+        "**/ua/edu/quizapp/ui/model/QuestionOptionParserKt.class",
+        "**/ua/edu/quizapp/ui/screens/quizplay/AdaptiveQuizEngine.class"
+    )
+    val debugTree = fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
+        include(coveredClassIncludes)
+    }
+
+    classDirectories.setFrom(files(debugTree))
+    sourceDirectories.setFrom(files("${project.projectDir}/src/main/java"))
+    executionData.setFrom(fileTree(layout.buildDirectory.get()) {
+        include("**/*.exec", "**/*.ec")
+    })
+
+    violationRules {
+        rule {
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = "0.85".toBigDecimal()
+            }
         }
     }
 }
