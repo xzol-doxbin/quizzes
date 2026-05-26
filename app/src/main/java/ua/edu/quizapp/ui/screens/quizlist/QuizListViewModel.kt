@@ -71,9 +71,9 @@ class QuizListViewModel(
             runCatching {
                 quizRepository.syncSupabaseQuizzes()
             }.onSuccess {
-                message.value = "Синхронізацію завершено"
+                message.value = "Список квізів оновлено"
             }.onFailure {
-                message.value = "Помилка синхронізації: ${it.message}"
+                message.value = "Не вдалося оновити квізи. Перевір з'єднання та спробуй ще раз."
             }
         } finally {
             isSyncing.value = false

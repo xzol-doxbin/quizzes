@@ -48,8 +48,13 @@ fun ResultsScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Результат збережено локально; якщо налаштовано Supabase, він також відправлений на сервер.",
-            style = MaterialTheme.typography.bodyMedium
+            text = when {
+                percent >= 80 -> "Чудовий результат! Результат збережено."
+                percent >= 50 -> "Непогано! Результат збережено."
+                else -> "Результат збережено. Спробуй ще раз — буде краще!"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(24.dp))

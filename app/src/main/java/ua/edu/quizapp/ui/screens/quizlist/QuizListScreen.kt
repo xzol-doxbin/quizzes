@@ -95,7 +95,7 @@ fun QuizListScreen(
                                 strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = "Синхронізувати")
+                            Icon(Icons.Default.Refresh, contentDescription = "Оновити квізи")
                         }
                     }
                 },
@@ -154,7 +154,7 @@ fun QuizListScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "Спільні (Supabase, демо) бачать усі; власні створені — лише ти.",
+                                    text = "Спільні квізи доступні всім; власні — лише в твоєму акаунті.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
                                 )
@@ -198,7 +198,7 @@ private fun QuizListLoadingContent(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Читаємо локальну базу та синхронізуємо з Supabase…",
+                text = "Завантажуємо квізи…",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -264,7 +264,7 @@ private fun QuizListEmptyContent(
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = "Натисни «Синхронізувати», щоб підтягнути квізи з мережі, або створи власний на головному екрані.",
+            text = "Натисни «Оновити», щоб підтягнути квізи з мережі, або створи власний на головному екрані.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -283,7 +283,7 @@ private fun QuizListEmptyContent(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Синхронізувати з Supabase")
+                Text("Оновити квізи")
             }
         }
     }

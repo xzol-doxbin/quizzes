@@ -18,7 +18,7 @@ class OpenAiQuizService(
     suspend fun generateQuiz(topic: String, questionCount: Int): OpenAiQuizPayload = withContext(Dispatchers.IO) {
         if (!OpenAiConfig.isConfigured()) {
             throw IllegalStateException(
-                "Ключ OpenAI не заданий. Додай OPENAI_API_KEY у файл local.properties у корені проєкту."
+                "Генерація квізу зараз недоступна. Створи квіз вручну або спробуй пізніше."
             )
         }
 
@@ -70,7 +70,7 @@ class OpenAiQuizService(
             if (!response.isSuccessful) {
                 val err = runCatching { JSONObject(body).optJSONObject("error")?.optString("message") }.getOrNull()
                 Log.e(TAG, "OpenAI error ${response.code}: $body")
-                throw IllegalStateException(err ?: "Помилка API OpenAI: ${response.code}")
+                throw IllegalStateException(err ?: "Не вдалося згенерувати квіз. Спробуй ще раз.")
             }
             body
         }
@@ -89,7 +89,7 @@ class OpenAiQuizService(
         val title = obj.optString("title").trim().ifBlank { "Квіз" }
         val description = obj.optString("description").trim()
         val arr = obj.optJSONArray("questions")
-            ?: throw IllegalStateException("У відповіді немає масиву questions")
+            ?: throw IllegalStateException("Не вдалося обробити відповідь. Спробуй ще раз.")
 
         val questions = mutableListOf<OpenAiQuestionPayload>()
         for (i in 0 until arr.length()) {
@@ -98,13 +98,13 @@ class OpenAiQuizService(
             if (text.isBlank()) continue
 
             val optsJson = q.optJSONArray("options")
-                ?: throw IllegalStateException("Питання ${i + 1}: немає options")
+                ?: throw IllegalStateException("Не вдалося обробити питання ${i + 1}. Спробуй ще раз.")
             val options = mutableListOf<String>()
             for (o in 0 until optsJson.length()) {
                 options += optsJson.getString(o).trim()
             }
             if (options.size != 4) {
-                throw IllegalStateException("Питання ${i + 1}: потрібно рівно 4 варіанти, отримано ${options.size}")
+                throw IllegalStateException("Не вдалося обробити питання ${i + 1}. Спробуй ще раз.")
             }
 
             var correct = q.optInt("correctIndex", 0)
@@ -120,7 +120,7 @@ class OpenAiQuizService(
         }
 
         if (questions.isEmpty()) {
-            throw IllegalStateException("Модель не повернула жодного питання")
+            throw IllegalStateException("Не вдалося згенерувати питання. Спробуй іншу тему.")
         }
 
         return OpenAiQuizPayload(title = title, description = description, questions = questions)

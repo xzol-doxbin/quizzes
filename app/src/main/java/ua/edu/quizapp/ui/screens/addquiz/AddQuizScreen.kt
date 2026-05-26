@@ -139,11 +139,11 @@ fun AddQuizScreen(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             Text(
-                text = "Генерація через ChatGPT (OpenAI)",
+                text = "Автогенерація квізу",
                 style = MaterialTheme.typography.titleLarge
             )
             Text(
-                text = "Ключ API: OPENAI_API_KEY у local.properties (не коміть у git).",
+                text = "Вкажи тему — додаток створить назву, опис і питання.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -151,7 +151,7 @@ fun AddQuizScreen(
             OutlinedTextField(
                 value = aiTopic,
                 onValueChange = { aiTopic = it },
-                label = { Text("Тема квізу для AI") },
+                label = { Text("Тема квізу") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = false,
                 minLines = 2
@@ -309,7 +309,7 @@ private fun QuestionEditorCard(
 
             if (question.explanation.isNotBlank()) {
                 Text(
-                    text = "Пояснення (з AI): ${question.explanation}",
+                    text = "Пояснення: ${question.explanation}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

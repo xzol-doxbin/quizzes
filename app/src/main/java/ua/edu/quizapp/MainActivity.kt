@@ -8,13 +8,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import ua.edu.quizapp.ui.navigation.NavGraph
-import ua.edu.quizapp.ui.theme.MyWishListAppTheme
+import ua.edu.quizapp.ui.theme.QuizAppTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MyWishListAppTheme {
+            QuizAppTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
